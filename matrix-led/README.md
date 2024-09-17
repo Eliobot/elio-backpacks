@@ -122,19 +122,3 @@ while True:
 - The `color_wipe` function sets each pixel to the specified color with a slight delay to create a wiping effect.
 
 ---
-
-#### 6. **Troubleshooting**
-
-- **LEDs Not Lighting Up**: Ensure the wiring is correct, especially the 3.3V and GND connections. Also, verify that the data pin is correctly set in your code.
-- **Flickering or Incorrect Colors**: Check that your power supply can provide sufficient current. NeoPixels can draw significant current at full brightness.
-- **Matrix Not Responding**: Ensure the microcontroller and NeoPixel matrix share a common ground.
-
----
-
-#### 7. **Common Applications**
-
-- Decorative lighting
-- Interactive displays
-- Digital signage
-- Wearable projects
-- Games and visual effects

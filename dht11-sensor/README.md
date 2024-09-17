@@ -47,7 +47,7 @@ The DHT11 sensor typically has four pins:
 
 **Example Code**:
 
-```cpp
+```arduino
 #include "DHT.h"
 
 #define DHTPIN 2     // Pin where the DHT11 is connected
