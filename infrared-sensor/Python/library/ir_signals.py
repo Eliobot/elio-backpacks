@@ -1,7 +1,6 @@
 # Eliobot robot Library
 # ir_signals_version = '1.0'
 # 
-#
 # 2025 ELIO SAS
 #
 # Project home:
