@@ -1,6 +1,7 @@
 # Eliobot MATRIX LED
-#
-# 2023 ELIO SAS
+# matrix_version = '1.0'
+# 
+# 2025 ELIO SAS
 #
 # Project home:
 #   https://eliobot.com
