@@ -1,3 +1,13 @@
+# Eliobot robot Library
+# ir_signals_version = '1.0'
+# 
+#
+# 2025 ELIO SAS
+#
+# Project home:
+#   https://eliobot.com
+#
+
 signal_ok = (0, 255, 56, 199)
 signal_left = (0, 255, 16, 239)
 signal_right = (0, 255, 90, 165)
