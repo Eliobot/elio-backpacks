@@ -5,7 +5,7 @@
 # interromprait le programme) : « C<texte> » envoie le texte tel quel à la
 # caméra, « B<base64> » envoie des octets bruts (le modèle).
 import board, busio, usb_cdc, binascii
-uart = busio.UART(board.TX, board.RX, baudrate=460800, timeout=0, receiver_buffer_size=32768)
+uart = busio.UART(board.TX, board.RX, baudrate=921600, timeout=0, receiver_buffer_size=32768)
 host = usb_cdc.console
 buf = bytearray(4096)
 view = memoryview(buf)

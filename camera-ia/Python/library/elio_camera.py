@@ -1,6 +1,6 @@
 # Caméra IA d'Eliobot : lit ce que voit la caméra (XIAO ESP32-S3 Sense,
 # firmware elioblocs-camera-firmware 2.1 ou plus) sur la liaison série du port
-# backpack (TX = IO43, RX = IO44, 460 800 bauds).
+# backpack (TX = IO43, RX = IO44, 921 600 bauds).
 #
 # La caméra détecte elle-même les objets appris dans Elioblocs (atelier
 # « Apprends à Elio à voir ») et envoie après chaque image, précédé de A5 5A,
@@ -23,7 +23,7 @@ import busio
 
 camera_version = '2.0.0'
 
-BAUDRATE = 460800
+BAUDRATE = 921600
 SYNC = b'\xa5\x5a\xe1'
 PACKET_SIZE = 32
 MAX_DETECTIONS = 7
