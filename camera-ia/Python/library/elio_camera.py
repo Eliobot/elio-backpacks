@@ -21,7 +21,7 @@ import time
 import board
 import busio
 
-camera_version = '2.0.0'
+camera_version = '2.1.0'
 
 BAUDRATE = 921600
 SYNC = b'\xa5\x5a\xe1'
@@ -29,6 +29,12 @@ PACKET_SIZE = 32
 MAX_DETECTIONS = 7
 # Sans paquet depuis ce délai, la caméra est considérée muette : plus rien n'est vu.
 STALE_SECONDS = 0.6
+# Un objet reste « vu » ce temps après sa dernière détection : la caméra en fait
+# environ 4 par seconde, et une seule image ratée ne doit pas arrêter Elio net.
+HOLD_SECONDS = 0.5
+# Zones de l'image (position horizontale, 0 à 100), les mêmes que le livret IA.
+LEFT_LIMIT = 35
+RIGHT_LIMIT = 65
 
 
 class CameraIA:
@@ -40,6 +46,7 @@ class CameraIA:
         self._detections = []
         self._frame = None
         self._got_at = None
+        self._last = {}  # objet -> (meilleure détection, heure), pour HOLD_SECONDS
         # La vidéo n'est utile qu'à l'atelier : on la coupe si elle était restée active.
         self.uart.write(b'v')
 
@@ -79,6 +86,17 @@ class CameraIA:
                 } for i in range(p[1])]
                 self._frame = p[30]
                 self._got_at = time.monotonic()
+                best = {}
+                for d in self._detections:
+                    o = d['object']
+                    # Sous le seuil, l'image ne compte pas : l'objet garde sa
+                    # dernière vraie détection pendant HOLD_SECONDS.
+                    if d['score'] < self.min_score:
+                        continue
+                    if o not in best or d['score'] > best[o]['score']:
+                        best[o] = d
+                for o, d in best.items():
+                    self._last[o] = (d, self._got_at)
         if self._got_at is None or time.monotonic() - self._got_at > STALE_SECONDS:
             self._detections = []
         return self._detections
@@ -89,12 +107,15 @@ class CameraIA:
         return self._got_at is not None and time.monotonic() - self._got_at <= STALE_SECONDS
 
     def _best(self, object_id):
-        best = None
-        for d in self.update():
-            if d['object'] == object_id and d['score'] >= self.min_score:
-                if best is None or d['score'] > best['score']:
-                    best = d
-        return best
+        """Dernière détection de l'objet si elle date de moins de HOLD_SECONDS."""
+        self.update()
+        held = self._last.get(object_id)
+        if held is None or self._got_at is None:
+            return None
+        d, at = held
+        if time.monotonic() - at > HOLD_SECONDS or d['score'] < self.min_score:
+            return None
+        return d
 
     def sees(self, object_id):
         """Elio voit-il l'objet (0 = le premier appris) ?"""
@@ -116,8 +137,71 @@ class CameraIA:
         return d['score'] if d else 0
 
     def count(self, object_id=None):
-        """Nombre d'objets vus (d'un seul type si object_id est donné)."""
+        """Nombre d'objets vus sur la dernière image (d'un seul type si object_id est donné).
+        Deux objets qui se touchent peuvent compter pour un."""
         return len([
             d for d in self.update()
             if d['score'] >= self.min_score and (object_id is None or d['object'] == object_id)
         ])
+
+    def zone(self, object_id):
+        """'left', 'center' ou 'right' selon la position horizontale ; None si l'objet n'est pas vu."""
+        d = self._best(object_id)
+        if d is None:
+            return None
+        if d['x'] < LEFT_LIMIT:
+            return 'left'
+        if d['x'] > RIGHT_LIMIT:
+            return 'right'
+        return 'center'
+
+    def is_at(self, object_id, where):
+        """L'objet est-il dans cette zone ('left', 'center' ou 'right') ?"""
+        return self.zone(object_id) == where
+
+    def wait_for(self, object_id):
+        """Attend qu'Elio voie l'objet."""
+        while not self.sees(object_id):
+            time.sleep(0.02)
+
+    def set_min_score(self, value):
+        """Confiance minimale (0 à 100) pour qu'un objet compte comme vu. 50 au départ."""
+        self.min_score = max(0, min(100, int(value)))
+
+    def _wait_new_image(self, images=2, timeout=1.0):
+        """Attend des détections faites après cet appel (la première peut dater d'avant)."""
+        end = time.monotonic() + timeout
+        seen = 0
+        frame = self._frame
+        while seen < images and time.monotonic() < end:
+            self.update()
+            if self._frame != frame:
+                frame = self._frame
+                seen += 1
+            time.sleep(0.01)
+
+    def turn_toward(self, object_id, motors, speed=40, timeout=5):
+        """Pivote par petits pas jusqu'à avoir l'objet au centre de l'image.
+        Après chaque pas, Elio attend une image prise à l'arrêt : en pivotant
+        sans s'arrêter, il dépasserait l'objet. Renvoie True si l'objet est au
+        centre, False s'il n'est plus vu ou au bout de timeout secondes."""
+        end = time.monotonic() + timeout
+        try:
+            while time.monotonic() < end:
+                d = self._best(object_id)
+                if d is None:
+                    return False
+                if LEFT_LIMIT <= d['x'] <= RIGHT_LIMIT:
+                    return True
+                # Pas plus long quand l'objet est loin du centre.
+                step = 0.04 + abs(d['x'] - 50) * 0.002
+                if d['x'] < LEFT_LIMIT:
+                    motors.turn_left(speed)
+                else:
+                    motors.turn_right(speed)
+                time.sleep(step)
+                motors.motor_stop()
+                self._wait_new_image()
+            return False
+        finally:
+            motors.motor_stop()
