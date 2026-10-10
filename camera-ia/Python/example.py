@@ -13,16 +13,8 @@ camera = CameraIA()
 
 try:
     while True:
-        if camera.sees(0):
-            x = camera.x(0)
-            if x < 35:
-                motors.turn_left(20)
-            elif x > 65:
-                motors.turn_right(20)
-            else:
-                motors.motor_stop()
-        else:
-            motors.motor_stop()
+        # Pivote par petits pas jusqu'à avoir l'objet au centre de l'image.
+        camera.turn_toward(0, motors)
         time.sleep(0.1)
 finally:
     # Les moteurs s'arrêtent même si le programme plante.
