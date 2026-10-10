@@ -21,7 +21,7 @@ import time
 import board
 import busio
 
-camera_version = '2.1.0'
+camera_version = '2.1.1'
 
 BAUDRATE = 921600
 SYNC = b'\xa5\x5a\xe1'
@@ -72,8 +72,10 @@ class CameraIA:
     def update(self):
         """Lit ce qui est arrivé et renvoie la liste des détections."""
         n = self.uart.in_waiting
-        if n:
-            self._buf += self.uart.read(n)
+        # read() peut renvoyer None même quand in_waiting annonce des octets.
+        data = self.uart.read(n) if n else None
+        if data:
+            self._buf += data
             if len(self._buf) > 4096:
                 self._buf = self._buf[-512:]
             p = self._parse()
